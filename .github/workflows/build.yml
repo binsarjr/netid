@@ -1,0 +1,87 @@
+name: Build Binaries
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+            artifact: netid-linux-amd64
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04
+            artifact: netid-linux-arm64
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-22.04
+            artifact: netid-linux-musl-amd64
+          - target: aarch64-apple-darwin
+            os: macos-14
+            artifact: netid-darwin-arm64
+          - target: x86_64-apple-darwin
+            os: macos-14
+            artifact: netid-darwin-amd64
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        if: matrix.os != 'macos-14'
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Install cross
+        if: matrix.os != 'macos-14'
+        run: cargo install cross
+
+      - name: Build
+        run: |
+          cross build --release --target ${{ matrix.target }}
+
+      - name: Build (macOS)
+        if: matrix.os == 'macos-14'
+        run: |
+          rustup target add ${{ matrix.target }}
+          cargo build --release --target ${{ matrix.target }}
+
+      - name: Prepare artifact
+        run: |
+          mkdir -p release
+          cp target/${{ matrix.target }}/release/netid release/${{ matrix.artifact }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/${{ matrix.artifact }}
+
+  create-release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release
+
+      - name: List files
+        run: ls -la release/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release/**/*
+          draft: false
