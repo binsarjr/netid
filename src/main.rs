@@ -151,7 +151,7 @@ fn get_country_ranges() -> std::collections::HashMap<&'static str, Vec<(&'static
         ("203.0.0.0/16", "203.0.0.0 - 203.0.255.255"),
     ]);
 
-    // United States
+    // United States - specific ranges (avoid overlapping with others)
     ranges.insert("US", vec![
         ("3.0.0.0/8", "3.0.0.0 - 3.255.255.255"),
         ("4.0.0.0/8", "4.0.0.0 - 4.255.255.255"),
@@ -201,13 +201,11 @@ fn get_country_ranges() -> std::collections::HashMap<&'static str, Vec<(&'static
         ("104.0.0.0/8", "104.0.0.0 - 104.255.255.255"),
         ("107.0.0.0/8", "107.0.0.0 - 107.255.255.255"),
         ("108.0.0.0/8", "108.0.0.0 - 108.255.255.255"),
-        ("108.0.0.0/8", "108.0.0.0 - 108.255.255.255"),
         ("142.0.0.0/8", "142.0.0.0 - 142.255.255.255"),
         ("143.0.0.0/8", "143.0.0.0 - 143.255.255.255"),
         ("144.0.0.0/8", "144.0.0.0 - 144.255.255.255"),
         ("157.0.0.0/8", "157.0.0.0 - 157.255.255.255"),
         ("158.0.0.0/8", "158.0.0.0 - 158.255.255.255"),
-        ("159.0.0.0/8", "159.0.0.0 - 159.255.255.255"),
         ("160.0.0.0/8", "160.0.0.0 - 160.255.255.255"),
         ("161.0.0.0/8", "161.0.0.0 - 161.255.255.255"),
         ("162.0.0.0/8", "162.0.0.0 - 162.255.255.255"),
@@ -223,9 +221,6 @@ fn get_country_ranges() -> std::collections::HashMap<&'static str, Vec<(&'static
         ("173.0.0.0/8", "173.0.0.0 - 173.255.255.255"),
         ("174.0.0.0/8", "174.0.0.0 - 174.255.255.255"),
         ("184.0.0.0/8", "184.0.0.0 - 184.255.255.255"),
-        ("192.0.0.0/24", "192.0.0.0 - 192.0.0.255"),
-        ("192.0.2.0/24", "192.0.2.0 - 192.0.2.255"),
-        ("192.0.0.0/24", "192.0.0.0 - 192.0.0.255"),
         ("198.0.0.0/8", "198.0.0.0 - 198.255.255.255"),
         ("199.0.0.0/8", "199.0.0.0 - 199.255.255.255"),
         ("204.0.0.0/8", "204.0.0.0 - 204.255.255.255"),
@@ -362,16 +357,15 @@ fn check_country(input: &str, targets: &HashSet<String>) -> Result<Option<String
 
     // Check if input is an IP address
     if input.parse::<IpAddr>().is_ok() {
-        // For IP: WHOIS is the source of truth, ranges as fallback
-        // Try WHOIS first (most accurate)
-        if let Ok(country) = get_whois_country_for_ip(input) {
-            return Ok(Some(country));
-        }
-        // Fallback: try IP range lookup
+        // For IP: Try IP range lookup first (fast)
         if let Ok(ip) = input.parse() {
             if let Some(country) = ip_to_country(ip) {
                 return Ok(Some(country));
             }
+        }
+        // If not found in ranges, try WHOIS
+        if let Ok(country) = get_whois_country_for_ip(input) {
+            return Ok(Some(country));
         }
         return Ok(None);
     }
