@@ -111,16 +111,16 @@ fn whois_ip_lookup(ip: &str) -> Result<String> {
         .parse()
         .unwrap_or(0);
 
-    let server = if first_octet >= 1 && first_octet <= 59) {
+    let server = if first_octet >= 1 && first_octet <= 59 {
         // APNIC (Asia-Pacific)
         "whois.apnic.net"
-    } else if first_octet >= 60 && first_octet <= 89) {
+    } else if first_octet >= 60 && first_octet <= 89 {
         // RIPE (Europe, Middle East)
         "whois.ripe.net"
-    } else if first_octet >= 90 && first_octet <= 126) {
+    } else if first_octet >= 90 && first_octet <= 126 {
         // ARIN (North America)
         "whois.arin.net"
-    } else if first_octet >= 128 && first_octet <= 191) {
+    } else if first_octet >= 128 && first_octet <= 191 {
         // APNIC or RIPE
         "whois.apnic.net"
     } else {
