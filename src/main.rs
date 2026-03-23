@@ -315,8 +315,15 @@ fn check_country(input: &str, targets: &HashSet<String>) -> Result<Option<String
 
     // Check if input is an IP address
     if let Ok(ip) = input.parse::<IpAddr>() {
-        let country = ip_to_country(ip);
-        return Ok(country);
+        // First try IP range lookup
+        if let Some(country) = ip_to_country(ip) {
+            return Ok(Some(country));
+        }
+        // Fallback: try WHOIS for IP (ARIN, RIPE, APNIC)
+        if let Ok(country) = get_whois_country_for_ip(&input) {
+            return Ok(Some(country));
+        }
+        return Ok(None);
     }
 
     // Otherwise treat as domain
@@ -367,6 +374,61 @@ fn parse_cidr(cidr: &str) -> Result<(IpAddr, u8)> {
     let ip: IpAddr = parts[0].parse()?;
     let mask: u8 = parts[1].parse()?;
     Ok((ip, mask))
+}
+
+fn get_whois_country_for_ip(ip: &str) -> Result<String> {
+    // For IP WHOIS, we need to query the appropriate RIR (Regional Internet Registry)
+    // APNIC handles Asia-Pacific including Indonesia
+
+    // Try APNIC first (most likely for Indonesia)
+    if let Ok(country) = query_whois_server(ip, "whois.apnic.net") {
+        return Ok(country);
+    }
+
+    // Fallback to RIPE
+    if let Ok(country) = query_whois_server(ip, "whois.ripe.net") {
+        return Ok(country);
+    }
+
+    // Fallback to ARIN
+    if let Ok(country) = query_whois_server(ip, "whois.arin.net") {
+        return Ok(country);
+    }
+
+    Err(anyhow!("Could not determine country for IP"))
+}
+
+fn query_whois_server(input: &str, server: &str) -> Result<String> {
+    let ip = resolve_hostname(server)?;
+    let addr = SocketAddr::new(ip, WHOIS_PORT);
+
+    let mut stream = TcpStream::connect_timeout(&addr, std::time::Duration::from_secs(10))?;
+    stream.set_read_timeout(Some(std::time::Duration::from_secs(15)))?;
+    stream.set_write_timeout(Some(std::time::Duration::from_secs(10)))?;
+
+    // For IP queries, we usually need "n -" or just the IP
+    let request = if server.contains("arin") {
+        format!("n -{}\r\n", input)
+    } else {
+        format!("{}\r\n", input)
+    };
+
+    stream.write_all(request.as_bytes())?;
+
+    let mut response = Vec::new();
+    let mut buffer = [0u8; 4096];
+
+    loop {
+        match stream.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(n) => response.extend_from_slice(&buffer[..n]),
+            Err(e) if e.kind() == std::io::ErrorKind::TimedOut => break,
+            Err(e) => return Err(anyhow!("Read error: {}", e)),
+        }
+    }
+
+    let response_str = String::from_utf8_lossy(&response);
+    extract_country(&response_str)
 }
 
 fn get_whois_country(domain: &str) -> Result<String> {
