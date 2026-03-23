@@ -116,4 +116,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create ${{ env.TAG }} release/* --title "Release ${{ env.TAG }}" --notes "Binary release for all platforms"
+          gh release create ${{ env.TAG }} release/netid-* --title "Release ${{ env.TAG }}" --notes "Binary release for all platforms"
