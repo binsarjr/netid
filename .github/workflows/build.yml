@@ -6,6 +6,9 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-linux:
     strategy:
@@ -94,8 +97,6 @@ jobs:
 
       - name: Create Tag
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           TAG=v1.0.0
           git tag -a $TAG -m "Release $TAG"
           git push origin $TAG
