@@ -9,6 +9,9 @@ path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
-dns-lookup = "2"
 regex = "1"
-anyhow = "1"
+
+[profile.release]
+strip = true
+lto = true
+opt-level = "z"
