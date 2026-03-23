@@ -99,9 +99,10 @@ jobs:
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
-          TAG=v1.0.0
+          TAG="v$(date +%Y%m%d%H%M%S)"
           git tag -a $TAG -m "Release $TAG"
           git push origin $TAG
+          echo "TAG=$TAG" >> $GITHUB_ENV
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -115,4 +116,4 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create v1.0.0 release/* --title "Release v1.0.0" --notes "Binary release for all platforms"
+          gh release create ${{ env.TAG }} release/* --title "Release ${{ env.TAG }}" --notes "Binary release for all platforms"
