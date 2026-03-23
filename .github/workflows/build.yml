@@ -112,7 +112,7 @@ jobs:
         run: ls -la release/
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: release/**/*
-          draft: false
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create v1.0.0 release/* --title "Release v1.0.0" --notes "Binary release for all platforms"
