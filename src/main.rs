@@ -14,6 +14,8 @@ fn get_country_ranges() -> std::collections::HashMap<&'static str, Vec<(&'static
     // Indonesia - specific ISP and provider IP ranges
     // Avoid /8 blocks that overlap with other countries
     ranges.insert("ID", vec![
+        // DigitalOcean, Vultr, etc (common cloud providers in ID)
+        ("159.223.0.0/16", "159.223.0.0 - 159.223.255.255"),
         // Telkom (most specific)
         ("110.138.0.0/15", "110.138.0.0 - 110.139.255.255"),
         ("114.4.0.0/16", "114.4.0.0 - 114.4.255.255"),
@@ -359,14 +361,17 @@ fn check_country(input: &str, targets: &HashSet<String>) -> Result<Option<String
     let input = input.trim();
 
     // Check if input is an IP address
-    if let Ok(ip) = input.parse::<IpAddr>() {
-        // First try IP range lookup
-        if let Some(country) = ip_to_country(ip) {
+    if input.parse::<IpAddr>().is_ok() {
+        // For IP: WHOIS is the source of truth, ranges as fallback
+        // Try WHOIS first (most accurate)
+        if let Ok(country) = get_whois_country_for_ip(input) {
             return Ok(Some(country));
         }
-        // Fallback: try WHOIS for IP (ARIN, RIPE, APNIC)
-        if let Ok(country) = get_whois_country_for_ip(&input) {
-            return Ok(Some(country));
+        // Fallback: try IP range lookup
+        if let Ok(ip) = input.parse() {
+            if let Some(country) = ip_to_country(ip) {
+                return Ok(Some(country));
+            }
         }
         return Ok(None);
     }
@@ -374,12 +379,12 @@ fn check_country(input: &str, targets: &HashSet<String>) -> Result<Option<String
     // Otherwise treat as domain
     let domain = input.to_lowercase();
 
-    // Quick check: TLD mapping
+    // Quick check: TLD mapping (fastest)
     if let Some(&country) = get_tld_country().get(domain.split('.').last().unwrap_or("")) {
         return Ok(Some(country.to_string()));
     }
 
-    // Do WHOIS lookup
+    // Do WHOIS lookup (most accurate)
     match get_whois_country(&domain) {
         Ok(country) => Ok(Some(country)),
         Err(_) => Ok(None),
