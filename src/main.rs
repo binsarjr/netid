@@ -83,8 +83,8 @@ fn check_country(input: &str, _targets: &HashSet<String>) -> Result<Option<Strin
     let input = input.trim();
 
     // Check if input is an IP address
-    if let Ok(ip) = input.parse::<IpAddr>() {
-        // Try WHOIS lookup for IP
+    if input.parse::<IpAddr>().is_ok() {
+        // Try WHOIS lookup for IP first (fast, no external API)
         if let Ok(country) = whois_ip_lookup(input) {
             return Ok(Some(country));
         }
@@ -105,7 +105,7 @@ fn check_country(input: &str, _targets: &HashSet<String>) -> Result<Option<Strin
 
 // WHOIS IP lookup - query appropriate RIR
 fn whois_ip_lookup(ip: &str) -> Result<String> {
-    // Determine which RIR based on IP
+    // Determine which RIR based on IP first octet
     let first_octet: u8 = ip.split('.').next()
         .unwrap_or("0")
         .parse()
